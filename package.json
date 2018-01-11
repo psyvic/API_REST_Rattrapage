@@ -5,12 +5,20 @@
   "main": "index.js",
   "dependencies": {
     "express": "^4.16.2",
-    "mysql": "^2.15.0"
+    "mysql": "^2.15.0",
+    "body-parser": "~1.0.1",
+    "sequelize": "~1.7.0",
+    "crypto": "~0.0.3",
+    "MD5": "~1.2.1"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/psyvic/API_REST_Rattrapage.git"
+  }
 }
