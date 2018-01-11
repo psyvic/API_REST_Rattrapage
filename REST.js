@@ -96,7 +96,6 @@ REST_ROUTER.prototype.handleRoutes = function(router,connection,md5) {
 		    		permission = 1;
 		    	}
 		    });
-
 		    var query = "SELECT A.ID, A.NAME, A.DESCRIPTION, A.CREATED_AT, B.USERNAME, B.ID, B.EMAIL, C.LANG_ID FROM DOMAIN = A, USERS = B, DOMAIN_TO_LANG = C WHERE A.ID=? AND A.USER_ID = B.ID AND A.ID = C.DOMAIN_ID";
 		    var table = [req.params.id];
 		    query = mysql.format(query,table);
@@ -142,10 +141,10 @@ REST_ROUTER.prototype.handleRoutes = function(router,connection,md5) {
 	        	var k = 0;
 	        	for (i = 0; i < rows.length; i++){
 		        		data[k] = {};
-		        		data[k]["valeur key"] = req.query.key;
-		        		data[k]["valeur id"] = req.params.id;
-		        		data[k]["valeur i"] = i;
-		        		data[k]["valeur k"] = k;
+		        		// data[k]["valeur key"] = req.query.key;
+		        		// data[k]["valeur id"] = req.params.id;
+		        		// data[k]["valeur i"] = i;
+		        		// data[k]["valeur k"] = k;
 		        		// data[k]["data length"] = data.length;
 		        		// data[k]["rows length"] = rows.length;
 		        		data[k]["id"] = rows[i].ID;
@@ -167,42 +166,95 @@ REST_ROUTER.prototype.handleRoutes = function(router,connection,md5) {
     });
 
     router.post("/domains/:id/translation.json", validator.params(schema), validator.body(schema), function(req,res){
+        var data = {};
         var query = "INSERT INTO TRANSLATION_TO_LANG(VALUE, LANG_ID, TRANSLATION_ID) VALUES (?,?, (SELECT ID FROM TRANSLATION WHERE TRANSLATION.KEY = ? AND TRANSLATION.DOMAIN_ID = ?))";
         var table = [req.body.value, req.body.lang_id, req.body.key, req.params.id];
         query = mysql.format(query,table);
         connection.query(query,function(err,rows){
             if(err) {
-                res.json({"Error" : true, "Message" : "Error executing MySQL query"});
-            } else {
-                res.json({"Error" : false, "Message" : "Translation Added !"});
-            }
-        });
+                res.json({"Error" : true, "Message" : "There are no elements to delete. Error executing MySQL query"});
+            } 
+        	else {
+		        query = "SELECT B.ID, B.KEY, C.LANG_ID, C.VALUE FROM DOMAIN = A, TRANSLATION = B, TRANSLATION_TO_LANG = C WHERE A.ID=? AND A.ID = B.DOMAIN_ID AND C.TRANSLATION_ID = B.ID AND B.KEY LIKE ? ORDER BY B.ID";	    
+			    table = [req.params.id, req.body.key];
+			    query = mysql.format(query,table);
+			    connection.query(query,function(err,rows){
+			        if(err) {
+			            res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+			        } else if (rows.length == 0){
+			        	res.json({"Error" : true, "Message" : "MysSQL query empty, check parameters"});
+			        } else {
+				        data["id"] = rows[0].ID;
+				        data["key"] = rows[0].KEY;		        
+				    	data["trans"]={};
+				    	for (i = 0; i < rows.length; i++)
+				    		data.trans[rows[i].LANG_ID] = rows[i].VALUE;
+				        res.json({"Code" : 201, "Message" : "Translation added", "Data" : data});
+			        }
+	        	})
+	    	};
+	    });
     });
 
     router.put("/domains/:id/translation/:key.json", validator.params(schema), validator.body(schema), function(req,res){
+        var data = {};
         var query = "UPDATE TRANSLATION_TO_LANG, TRANSLATION SET VALUE = ? WHERE TRANSLATION_TO_LANG.LANG_ID = ? AND TRANSLATION_TO_LANG.TRANSLATION_ID = (SELECT ID FROM TRANSLATION WHERE TRANSLATION.KEY = ? AND TRANSLATION.DOMAIN_ID = ?)";
         var table = [req.body.value, req.body.lang_id, req.params.key, req.params.id];
         query = mysql.format(query,table);
         connection.query(query,function(err,rows){
             if(err) {
                 res.json({"Error" : true, "Message" : "Error executing MySQL query"});
-            } else {
-                res.json({"Error" : false, "Message" : "Updated tranlastion"});
-            }
-        });
+        	};
+    	});
+    	query = "SELECT B.ID, B.KEY, C.LANG_ID, C.VALUE FROM DOMAIN = A, TRANSLATION = B, TRANSLATION_TO_LANG = C WHERE A.ID=? AND A.ID = B.DOMAIN_ID AND C.TRANSLATION_ID = B.ID AND B.KEY LIKE ? ORDER BY B.ID";	    
+	    table = [req.params.id, req.params.key];
+	    query = mysql.format(query,table);
+	    connection.query(query,function(err,rows){
+	        if(err) {
+	            res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+	        } else if (rows.length == 0){
+	        	res.json({"Error" : true, "Message" : "NO modifications where made. MysSQL query empty, verify parameters"});
+	        } else {
+		        data["id"] = rows[0].ID;
+		        data["key"] = rows[0].KEY;		        
+		    	data["trans"]={};
+		    	for (i = 0; i < rows.length; i++)
+		    		data.trans[rows[i].LANG_ID] = rows[i].VALUE;
+		        res.json({"Code" : 200, "Message" : "Modifications made!", "Data" : data});
+	        }
+	    });
     });
 
     router.delete("/domains/:id/translation/:key.json",validator.params(schema), function(req,res){
+        var data = {};
+        var val;
         var query = "DELETE from TRANSLATION_TO_LANG WHERE TRANSLATION_TO_LANG.TRANSLATION_ID = (SELECT ID FROM TRANSLATION WHERE TRANSLATION.KEY = ? AND TRANSLATION.DOMAIN_ID = ?)";
         var table = [req.params.key, req.params.id];
         query = mysql.format(query,table);
-        connection.query(query,function(err,rows){
+        connection.query(query,function(err, rows){
+        	val = rows;
             if(err) {
                 res.json({"Error" : true, "Message" : "Error executing MySQL query"});
-            } else {
-                res.json({"Error" : false, "Message" : "Deleted translation"});
             }
         });
+        query = "SELECT B.ID, B.KEY FROM DOMAIN = A, TRANSLATION = B, TRANSLATION_TO_LANG = C WHERE A.ID=? AND A.ID = B.DOMAIN_ID AND C.TRANSLATION_ID = B.ID";	    
+	    table = [req.params.id];
+	    query = mysql.format(query,table);
+	    connection.query(query,function(err,rows){
+	        if(err) {
+	            res.json({"Error" : true, "Message" : "Error executing MySQL query"});
+	        } else {
+		        data["id"] = rows[0].ID;
+		        // data["key"] = rows[0].KEY;		        
+		    	// data["trans"]={};
+		    	// for (i = 0; i < rows.length; i++)
+		    	// 	data.trans[rows[i].LANG_ID] = rows[i].VALUE;
+		    	if (val.affectedRows == 0)
+		        	res.json({"Code" : 200, "Message" : "No translations were deleted", "Data" : data});
+		        else
+		        	res.json({"Code" : 200, "Message" : "Translations deleted", "Data" : data});
+	        }
+	    });
     });
 
 
